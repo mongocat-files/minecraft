@@ -18,22 +18,31 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
+import static org.lwjgl.input.Keyboard.KEY_F11;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.util.glu.GLU.gluPerspective;
-import static org.lwjgl.util.glu.GLU.gluPickMatrix;
+import static org.lwjgl.util.glu.GLU.*;
 
 public class Minecraft implements Runnable {
 
+    public boolean noSeizure = true;
     private final Timer timer = new Timer(20);
-
+    float fogDensity;
     private Level level;
     private LevelRenderer levelRenderer;
     private Player player;
-
+    public int ylevel = 0;
+    public int starx = 0;
+    public int stary = 0;
+    public int starz = 0;
+    public boolean shrimpington = false;
+    public int gazerTextureId;
+    public int gazerHeight = 0;
     private final List<Zombie> zombies = new ArrayList<>();
     private ParticleEngine particleEngine;
-
+    public boolean isFullscreen = false;
+    public boolean arm = false;
     /**
      * Fog
      */
@@ -44,9 +53,11 @@ public class Minecraft implements Runnable {
     /**
      * Tile picking
      */
+
     private final IntBuffer viewportBuffer = BufferUtils.createIntBuffer(16);
     private final IntBuffer selectBuffer = BufferUtils.createIntBuffer(2000);
     private HitResult hitResult;
+    int FOV;
 
     /**
      * HUD rendering
@@ -57,6 +68,7 @@ public class Minecraft implements Runnable {
      * Selected tile in hand
      */
     private int selectedTileId = 1;
+    private int selectedItemId = 1;
 
     /**
      * Canvas
@@ -64,7 +76,7 @@ public class Minecraft implements Runnable {
     private final Canvas parent;
     private int width;
     private int height;
-    private final boolean fullscreen;
+    private boolean fullscreen;
     public boolean appletMode;
 
     /**
@@ -87,6 +99,7 @@ public class Minecraft implements Runnable {
         this.fullscreen = fullscreen;
     }
 
+
     /**
      * Initialize the game.
      * Setup display, keyboard, mouse, rendering and camera
@@ -101,6 +114,7 @@ public class Minecraft implements Runnable {
                 250 / 255.0F,
                 255 / 255.0F
         }).flip();
+
 
         // Write fog color for shadow
         this.fogColorShadow.put(new float[]{
@@ -127,6 +141,7 @@ public class Minecraft implements Runnable {
             Display.setParent(this.parent);
         }
 
+
         // Setup I/O
         Display.create();
         Keyboard.create();
@@ -135,7 +150,7 @@ public class Minecraft implements Runnable {
         // Setup texture and color
         glEnable(GL_TEXTURE_2D);
         glShadeModel(GL_SMOOTH);
-        glClearColor(0.5F, 0.8F, 1.0F, 0.0F);
+        glClearColor(0, 0, 0.2f, 0);
         glClearDepth(1.0);
 
         // Setup depth
@@ -145,7 +160,7 @@ public class Minecraft implements Runnable {
 
         // Setup alpha
         glEnable(GL_ALPHA_TEST);
-        glAlphaFunc(GL_GREATER, 0.5F);
+        glAlphaFunc(GL_GREATER, 0F);
 
         // Setup camera
         glMatrixMode(GL_PROJECTION);
@@ -189,6 +204,7 @@ public class Minecraft implements Runnable {
         // Game is running
         this.running = true;
 
+
         try {
             // Initialize the game
             init();
@@ -201,6 +217,7 @@ public class Minecraft implements Runnable {
         // To keep track of framerate
         int frames = 0;
         long lastTime = System.currentTimeMillis();
+
 
         try {
             // Start the game loop
@@ -227,7 +244,7 @@ public class Minecraft implements Runnable {
                 // Loop if a second passed
                 while (System.currentTimeMillis() >= lastTime + 1000L) {
                     // Print amount of frames
-                    System.out.println(frames + " fps, " + Chunk.updates);
+                    System.out.println(height + " fps, " + Chunk.updates);
 
                     // Reset global rebuild stats
                     Chunk.updates = 0;
@@ -255,8 +272,31 @@ public class Minecraft implements Runnable {
     /**
      * Game tick, called exactly 20 times per second
      */
+
     private void onTick() {
+
+        starx = (int)(Math.random() * 101);
+        stary = (int)(Math.random() * 101);
+        starz = (int)(Math.random() * 101);
+
+        if(ylevel <= 50 && noSeizure) {
+            ylevel++;
+        } else if (ylevel >= -100) {
+            noSeizure = false;
+            ylevel--;
+        }
+        if(ylevel <= -100 && !noSeizure){
+            ylevel++;
+        }
+
+
+        if (this.level.isTile((int) player.x, (int) player.y - 1, (int) player.z)) {
+            this.player.motionY = 0.5F;
+        }
         // Listen for keyboard inputs
+        if (player.cooldown <= 30) {
+            player.cooldown++;
+        }
         while (Keyboard.next()) {
             if (Keyboard.getEventKeyState()) {
 
@@ -264,32 +304,75 @@ public class Minecraft implements Runnable {
                 if (Keyboard.getEventKey() == 1) { // Escape
                     stop();
                 }
+                if (Keyboard.isKeyDown(18)) {
+                    player.id++;
+                    System.out.println(player.id);
+                    if (player.id >= 12) {
+                        int block = player.id = 0;
+                    }
+                }
 
                 // Save the level
                 if (Keyboard.getEventKey() == 28) { // Enter
                     this.level.save();
+                    System.out.println("It worked");
+                }
+
+                if (Keyboard.getEventKey() == 5 && !arm) { // Enter
+                    arm = true;
+                } else if (Keyboard.getEventKey() == 5) {
+                    arm = false;
+                }
+
+                if (Keyboard.getEventKey() == KEY_F11) { // Enter
+                    fullscreen = true;
+                    System.out.println("It worked");
                 }
 
                 // Tile selection
-                if (Keyboard.getEventKey() == 2) { // 1
+                if (player.id == 0) { // 1
                     this.selectedTileId = Tile.rock.id;
                 }
-                if (Keyboard.getEventKey() == 3) { // 2
+                if (player.id == 1) { // 1
                     this.selectedTileId = Tile.dirt.id;
                 }
-                if (Keyboard.getEventKey() == 4) { // 3
-                    this.selectedTileId = Tile.stoneBrick.id;
+                if (player.id == 2) { // 1
+                    this.selectedTileId = Tile.cobblestone.id;
                 }
-                if (Keyboard.getEventKey() == 5) { // 4
+                if (player.id == 3) { // 1
                     this.selectedTileId = Tile.wood.id;
                 }
-                if (Keyboard.getEventKey() == 7) { // 6
-                    this.selectedTileId = Tile.bush.id;
+                if (player.id == 4) { // 1
+                    this.selectedTileId = Tile.grass.id;
+                }
+                if (player.id == 5) { // 1
+                    this.selectedTileId = Tile.mossyCobblestone.id;
+                }
+                if (player.id == 6) { // 1
+                    this.selectedTileId = Tile.smallBrick.id;
+                }
+                if (player.id == 7) { // 1
+                    this.selectedTileId = Tile.largeBrick.id;
+                }
+                if (player.id == 8) { // 1
+                    this.selectedTileId = Tile.polishedStone.id;
+                }
+                if (player.id == 9) { // 1
+                    this.selectedTileId = Tile.jumper.id;
+                }
+
+                if (player.id == 10) { // 1
+                    this.selectedTileId = Tile.lapis.id;
+                }
+
+                if (player.id == 11) { // 1
+                    this.selectedTileId = Tile.slab.id;
                 }
 
                 // Spawn zombie
                 if (Keyboard.getEventKey() == 34) { // G
                     this.zombies.add(new Zombie(this.level, this.player.x, this.player.y, this.player.z));
+
                 }
             }
         }
@@ -311,9 +394,10 @@ public class Minecraft implements Runnable {
             // Remove zombie
             if (zombie.removed) {
                 iterator.remove();
-            }
-        }
 
+            }
+
+        }
         // Tick player
         this.player.onTick();
     }
@@ -353,7 +437,8 @@ public class Minecraft implements Runnable {
         glLoadIdentity();
 
         // Set camera perspective
-        gluPerspective(70, width / (float) height, 0.05F, 1000F);
+        int FOV = 70;
+        gluPerspective(FOV, width / (float) height, 0.05F, 1000F);
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
@@ -459,6 +544,7 @@ public class Minecraft implements Runnable {
      * @param partialTicks Overflow ticks to interpolate
      */
     private void render(float partialTicks) {
+
         // Get mouse motion
         float motionX = Mouse.getDX();
         float motionY = Mouse.getDY();
@@ -472,7 +558,7 @@ public class Minecraft implements Runnable {
         // Listen for mouse inputs
         while (Mouse.next()) {
             // Right click
-            if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult != null) {
+            if (Mouse.getEventButton() == 0 && Mouse.getEventButtonState() && this.hitResult != null && !arm) {
                 Tile previousTile = Tile.tiles[this.level.getTile(this.hitResult.x, this.hitResult.y, this.hitResult.z)];
 
                 // Destroy the tile
@@ -484,8 +570,8 @@ public class Minecraft implements Runnable {
                 }
             }
 
-            // Left click
-            if (Mouse.getEventButton() == 0 && Mouse.getEventButtonState() && this.hitResult != null) {
+                // Left click
+            if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult != null && !arm) {
                 // Get target tile position
                 int x = this.hitResult.x;
                 int y = this.hitResult.y;
@@ -502,7 +588,16 @@ public class Minecraft implements Runnable {
                 // Set the tile
                 this.level.setTile(x, y, z, this.selectedTileId);
             }
+            if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() || Mouse.getEventButton() == 0 && Mouse.getEventButtonState()) {
+                int i = gazerHeight - 10;
+                gazerHeight = i;
+            }else
+                gazerHeight = 0;
         }
+        if (Mouse.getEventButton() == 1 && Mouse.getEventButtonState() && this.hitResult == null){
+        }
+
+
 
         // Clear color and depth buffer and reset the camera
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -565,6 +660,7 @@ public class Minecraft implements Runnable {
         // Draw player HUD
         drawGui(partialTicks);
 
+
         // Update the display
         Display.update();
     }
@@ -576,14 +672,28 @@ public class Minecraft implements Runnable {
      */
     private void drawGui(float partialTicks) {
         // Clear depth
+
+        if (player.doShader) {
+            glEnable(GL_BLEND);
+        }
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        // Setup HUD camera
+
+        final int random = (int) (Math.random() * 256);
+
+            glEnable(GL_TEXTURE_2D);
+            this.tessellator.init();
+            glTranslatef(0.0f, ylevel, 0.0F);
+            Tile.tiles[14].render(this.tessellator, this.level, 0, 100, 100, 100);
+            this.tessellator.flush();
+
+        // Setup U.S Department Of Housing camera
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
         int screenWidth = this.width * 240 / this.height;
         int screenHeight = this.height * 240 / this.height;
+
 
         // Set camera perspective
         glOrtho(0.0, screenWidth, screenHeight, 0.0, 100.0F, 300.0F);
@@ -597,12 +707,19 @@ public class Minecraft implements Runnable {
         // Start tile display
         glPushMatrix();
 
+
+
+        int x = screenWidth / 2;
+        int y = screenHeight / 2;
+
+        int x2 = screenWidth / 2 + 220;
+        int y2 = screenHeight / 2 + 220;
         // Transform tile position to the top right corner
-        glTranslated(screenWidth - 16, 16.0F, 0.0F);
+        glTranslated( x, 70.0F , 0.0F);
         glScalef(16.0F, 16.0F, 16.0F);
         glRotatef(30.0F, 1.0F, 0.0F, 0.0F);
         glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
-        glTranslatef(-1.5F, 0.5F, -0.5F);
+
         glScalef(-1.0F, -1.0F, 1.0F);
 
         // Setup tile rendering
@@ -610,18 +727,128 @@ public class Minecraft implements Runnable {
         glBindTexture(GL_TEXTURE_2D, id);
         glEnable(GL_TEXTURE_2D);
 
+
+
+
+
+
         // Render selected tile in hand
         this.tessellator.init();
-        Tile.tiles[this.selectedTileId].render(this.tessellator, this.level, 0, -2, 0, 0);
+        Tile.tiles[this.selectedTileId].render(this.tessellator, this.level, 0, 0, -11, 0);
         this.tessellator.flush();
 
         // Finish tile rendering
-        glDisable(GL_TEXTURE_2D);
         glPopMatrix();
+        int itemX = screenWidth / 2;
+        int itemY = screenHeight / 8 * 7;
 
-        // Cross hair position
-        int x = screenWidth / 2;
-        int y = screenHeight / 2;
+        int itemTextureId = 20;
+
+        float itemMinU = itemTextureId % 16 / 16.0F;
+        float itemMaxU = itemMinU + 32 / 256F;
+        float itemMinV = (float) (itemTextureId / 16) / 16.0F;
+        float itemMaxV = itemMinV + 32 / 256F;
+
+        this.tessellator.init();
+        this.tessellator.vertexUV((float) (itemX + 32), (float) (itemY - 32), 0.0F, itemMaxU, itemMinV);
+        this.tessellator.vertexUV((float) (itemX - 32), (float) (itemY - 32), 0.0F, itemMinU, itemMinV);
+        this.tessellator.vertexUV((float) (itemX - 32), (float) (itemY + 32), 0.0F, itemMinU, itemMaxV);
+        this.tessellator.vertexUV((float) (itemX + 32), (float) (itemY + 32), 0.0F, itemMaxU, itemMaxV);
+        this.tessellator.flush();
+
+        int gazerX = screenWidth / 2 + 95;
+        int gazerY = screenHeight + gazerHeight;
+        gazerTextureId = 72;
+        if(arm){
+            gazerTextureId = 7;
+        }
+
+
+
+        float gazerMinU = gazerTextureId % 16 / 16.0F;
+        float gazerMaxU = gazerMinU + 97 / 256F;
+        float gazerMinV = (float) (gazerTextureId / 16) / 16.0F;
+        float gazerMaxV = gazerMinV + 97 / 256F;
+
+        this.tessellator.init();
+        this.tessellator.vertexUV((float) (gazerX + 64), (float) (gazerY - 64), 0.0F, gazerMaxU, gazerMinV);
+        this.tessellator.vertexUV((float) (gazerX - 64), (float) (gazerY - 64), 0.0F, gazerMinU, gazerMinV);
+        this.tessellator.vertexUV((float) (gazerX - 64), (float) (gazerY + 64), 0.0F, gazerMinU, gazerMaxV);
+        this.tessellator.vertexUV((float) (gazerX + 64), (float) (gazerY + 64), 0.0F, gazerMaxU, gazerMaxV);
+        this.tessellator.flush();
+
+        int EitemX = screenWidth / 2 - 66;
+        int EitemY = screenHeight / 8 * 7;
+
+        int EitemTextureId = 33;
+
+        float EitemMinU = EitemTextureId % 16 / 16.0F;
+        float EitemMaxU = EitemMinU + 48 / 256F;
+        float EitemMinV = (float) (EitemTextureId / 16) / 16.0F;
+        float EitemMaxV = EitemMinV + 48 / 256F;
+
+
+        this.tessellator.init();
+        this.tessellator.vertexUV((float) (EitemX + 48), (float) (EitemY - 48), 0.0F, EitemMaxU, EitemMinV);
+        this.tessellator.vertexUV((float) (EitemX - 48), (float) (EitemY - 48), 0.0F, EitemMinU, EitemMinV);
+        this.tessellator.vertexUV((float) (EitemX - 48), (float) (EitemY + 48), 0.0F, EitemMinU, EitemMaxV);
+        this.tessellator.vertexUV((float) (EitemX + 48), (float) (EitemY + 48), 0.0F, EitemMaxU, EitemMaxV);
+        this.tessellator.flush();
+
+        if(arm){
+        int GitemX = screenWidth / 2 - 65 + 1;
+        int GitemY = screenHeight / 8 * 7 - 2;
+
+        int GitemTextureId = 68;
+
+        float GitemMinU = GitemTextureId % 16 / 16.0F;
+        float GitemMaxU = GitemMinU + 64 / 256F;
+        float GitemMinV = (float) (GitemTextureId / 16) / 16.0F;
+        float GitemMaxV = GitemMinV + 64 / 256F;
+
+
+        this.tessellator.init();
+        this.tessellator.vertexUV((float) (GitemX + 20), (float) (GitemY - 20), 0.0F, GitemMaxU, GitemMinV);
+        this.tessellator.vertexUV((float) (GitemX - 20), (float) (GitemY - 20), 0.0F, GitemMinU, GitemMinV);
+        this.tessellator.vertexUV((float) (GitemX - 20), (float) (GitemY + 20), 0.0F, GitemMinU, GitemMaxV);
+        this.tessellator.vertexUV((float) (GitemX + 20), (float) (GitemY + 20), 0.0F, GitemMaxU, GitemMaxV);
+        this.tessellator.flush();
+        } else{
+            int GitemX = screenWidth / 2 - 65 + 1;
+            int GitemY = screenHeight / 8 * 7 - 2;
+
+            int GitemTextureId = 78;
+
+            float GitemMinU = GitemTextureId % 16 / 16.0F;
+            float GitemMaxU = GitemMinU + 30 / 256F;
+            float GitemMinV = (float) (GitemTextureId / 16) / 16.0F;
+            float GitemMaxV = GitemMinV + 30 / 256F;
+
+
+            this.tessellator.init();
+            this.tessellator.vertexUV((float) (GitemX + 18), (float) (GitemY - 18), 0.0F, GitemMaxU, GitemMinV);
+            this.tessellator.vertexUV((float) (GitemX - 18), (float) (GitemY - 18), 0.0F, GitemMinU, GitemMinV);
+            this.tessellator.vertexUV((float) (GitemX - 18), (float) (GitemY + 18), 0.0F, GitemMinU, GitemMaxV);
+            this.tessellator.vertexUV((float) (GitemX + 18), (float) (GitemY + 18), 0.0F, GitemMaxU, GitemMaxV);
+            this.tessellator.flush();
+        }
+        glDisable(GL_TEXTURE_2D);
+
+        glColor4f(0.0F, 0.0F, 0.0F, 1.0F);
+        this.tessellator.init();
+        this.tessellator.vertex((float) (screenWidth/5), (float) (-1000), 0.0F);
+        this.tessellator.vertex((float) (-screenWidth/5), (float) (-1000), 0.0F);
+        this.tessellator.vertex((float) (-screenWidth/5), (float) (1000), 0.0F);
+        this.tessellator.vertex((float) (screenWidth/5), (float) (1000), 0.0F);
+        // RAHHH
+        this.tessellator.vertex((float) (screenWidth/4 + 450), (float) (-1000), 0.0F);
+        this.tessellator.vertex((float) (-screenWidth/4 + 450), (float) (-1000), 0.0F);
+        this.tessellator.vertex((float) (-screenWidth/4 + 450), (float) (1000), 0.0F);
+        this.tessellator.vertex((float) (screenWidth/4 + 450), (float) (1000), 0.0F);
+        this.tessellator.flush();
+
+
+
 
         // Cross hair color
         glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
@@ -637,6 +864,44 @@ public class Minecraft implements Runnable {
         this.tessellator.vertex((float) (x - 4), (float) (y + 1), 0.0F);
         this.tessellator.vertex((float) (x + 5), (float) (y + 1), 0.0F);
         this.tessellator.flush();
+
+
+        this.tessellator.init();
+        int p = screenHeight / 2 + 110;
+        int e = screenWidth / 2 -15;
+
+
+        this.tessellator.init();
+        if (player.cooldown <=30){
+        glColor4f(0.0F, 0.0F, 0.0F, 1.0F);
+        this.tessellator.vertex((float) (e + 30), (float) (p - 0.1), 0.0F);
+        this.tessellator.vertex((float) (e - 0), (float) (p - 0.1), 0.0F);
+        this.tessellator.vertex((float) (e - 0), (float) (p + 4), 0.0F);
+        this.tessellator.vertex((float) (e + 30), (float) (p + 4), 0.0F);
+        this.tessellator.flush();
+        }
+        this.tessellator.init();
+        glColor4f(5.0F, 5.0F, 0.0F, 1.0F);
+        this.tessellator.vertex((float) (e + player.cooldown), (float) (p - 0.1), 10.0F);
+        this.tessellator.vertex((float) (e - 0), (float) (p - 0.1), 0.0F);
+        this.tessellator.vertex((float) (e - 0), (float) (p + 4), 0.0F);
+        this.tessellator.vertex((float) (e + player.cooldown), (float) (p + 4), 0.0F);
+        this.tessellator.flush();
+
+
+
+        if (player.flash){
+            glColor4f(1.0F, 1.0F, 1.0F, 1);
+            this.tessellator.init();
+            this.tessellator.vertex((float) (screenWidth*5), (float) (-1000), 0.0F);
+            this.tessellator.vertex((float) (-screenWidth*5), (float) (-1000), 0.0F);
+            this.tessellator.vertex((float) (-screenWidth*5), (float) (1000), 0.0F);
+            this.tessellator.vertex((float) (screenWidth*5), (float) (1000), 0.0F);
+            glEnable(GL_BLUE);
+            glEnable(GL_AMBIENT);
+            levelRenderer.getAllDirtyChunks();
+            this.tessellator.flush();
+        }
     }
 
     /**
@@ -646,10 +911,10 @@ public class Minecraft implements Runnable {
      */
     private void setupFog(int fogType) {
         // Daylight fog
-        if (fogType == 0) {
+        if (fogType == 15) {
             // Fog distance
             glFogi(GL_FOG_MODE, GL_VIEWPORT_BIT);
-            glFogf(GL_FOG_DENSITY, 0.001F);
+            glFogf(GL_FOG_DENSITY, 0.2F);
 
             // Set fog color
             glFog(GL_FOG_COLOR, this.fogColorDaylight);
@@ -659,9 +924,10 @@ public class Minecraft implements Runnable {
 
         // Shadow fog
         if (fogType == 1) {
+            float fogDensity = 0.06F;
             // Fog distance
             glFogi(GL_FOG_MODE, GL_VIEWPORT_BIT);
-            glFogf(GL_FOG_DENSITY, 0.06F);
+            glFogf(GL_FOG_DENSITY, fogDensity);
 
             // Set fog color
             glFog(GL_FOG_COLOR, this.fogColorShadow);
@@ -669,7 +935,7 @@ public class Minecraft implements Runnable {
             glEnable(GL_LIGHTING);
             glEnable(GL_COLOR_MATERIAL);
 
-            float brightness = 0.6F;
+            float brightness = 0.0F;
             glLightModel(GL_LIGHT_MODEL_AMBIENT, this.getBuffer(brightness, brightness, brightness, 1.0F));
         }
     }
@@ -698,16 +964,17 @@ public class Minecraft implements Runnable {
     public static void main(String[] args) {
         boolean fullScreen = false;
 
+
         // Find fullscreen argument
         for (String arg : args) {
-            if (arg.equalsIgnoreCase("-fullscreen")) {
+            if (fullScreen) {
                 fullScreen = true;
+                System.out.println(fullScreen);
                 break;
             }
         }
 
         // Launch
-        new Thread(new Minecraft(null, 1024, 768, fullScreen)).start();
+        new Thread(new Minecraft(null, 1400, 768, fullScreen)).start();
     }
-
 }

@@ -16,9 +16,17 @@ public class Tile {
     public static Tile rock = new Tile(1, 1);
     public static Tile grass = new GrassTile(2);
     public static Tile dirt = new Tile(3, 2);
-    public static Tile stoneBrick = new Tile(4, 16);
+    public static Tile cobblestone = new Tile(4, 16);
     public static Tile wood = new Tile(5, 4);
-    public static Tile bush = new Bush(6);
+    public static Tile mossyCobblestone = new Tile(6, 15);
+    public static Tile smallBrick = new Tile(7, 17);
+    public static Tile largeBrick = new Tile(8, 18);
+    public static Tile polishedStone = new Tile(9, 19);
+    public static Tile jumper = new Tile(10, 6);
+    public static Tile lapis = new Tile(11, 22);
+    public static Tile what = new Tile(14, 14);
+    public static Tile slab = new Slab(12);
+
 
     public final int id;
     protected int textureId;
@@ -60,6 +68,8 @@ public class Tile {
         float shadeX = 0.6f;
         float shadeY = 1.0f;
         float shadeZ = 0.8f;
+
+
 
         // Render bottom face
         if (shouldRenderFace(level, x, y - 1, z, layer)) {
@@ -313,7 +323,7 @@ public class Tile {
      * @return Returns true if the tile can block the light of the sun
      */
     public boolean blocksLight() {
-        return true;
+        return false;
     }
 
     /**

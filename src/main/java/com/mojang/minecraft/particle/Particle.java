@@ -31,6 +31,7 @@ public class Particle extends Entity {
     public Particle(Level level, double x, double y, double z, double motionX, double motionY, double motionZ, int textureId) {
         super(level);
 
+
         // Set texture
         this.textureId = textureId;
 

@@ -39,9 +39,6 @@ public class GrassTile extends Tile {
                     level.setTile(targetX, targetY, targetZ, Tile.grass.id);
                 }
             }
-        } else {
-            // Set tile to dirt if there is no sunlight
-            level.setTile(x, y, z, Tile.dirt.id);
         }
     }
 }

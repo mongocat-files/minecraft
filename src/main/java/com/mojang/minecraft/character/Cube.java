@@ -63,7 +63,7 @@ public class Cube {
         Vertex vertexBottom4 = new Vertex(x, offsetY, z, 0.0F, 8.0F);
 
         // Create top vertex points of cube
-        Vertex vertexTop1 = new Vertex(x, y, z, 8.0F, 8.0F);
+        Vertex vertexTop1 = new Vertex(x, y, z, 9.0F, 8.0F);
         Vertex vertexTop2 = new Vertex(offsetX, y, z, 8.0F, 0.0F);
         Vertex vertexTop3 = new Vertex(x, y, offsetZ, 8.0F, 8.0F);
         Vertex vertexTop4 = new Vertex(offsetX, y, offsetZ, 8.0F, 0.0F);

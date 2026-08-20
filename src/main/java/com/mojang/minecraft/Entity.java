@@ -1,6 +1,9 @@
 package com.mojang.minecraft;
 
 import com.mojang.minecraft.level.Level;
+import com.mojang.minecraft.level.tile.Tile;
+import com.mojang.minecraft.particle.Particle;
+import com.mojang.minecraft.particle.ParticleEngine;
 import com.mojang.minecraft.phys.AABB;
 
 import java.util.List;
@@ -13,11 +16,11 @@ public abstract class Entity {
     public double prevX, prevY, prevZ;
     public double motionX, motionY, motionZ;
     public float xRotation, yRotation;
-
     public AABB boundingBox;
+    public boolean goFast;
     protected float boundingBoxWidth = 0.6F;
     protected float boundingBoxHeight = 1.8F;
-
+    public boolean doShader = false;
     protected boolean onGround;
     protected float heightOffset;
 
@@ -109,6 +112,18 @@ public abstract class Entity {
         this.prevX = this.x;
         this.prevY = this.y;
         this.prevZ = this.z;
+        if(this.prevY > 70){
+            doShader = true;
+        }else {
+            doShader = false;
+        }
+        if(level.getTile((int) prevX, (int) prevY -2, (int) prevZ) == Tile.jumper.id){
+            this.motionY = 2;
+        }
+        if(level.getTile((int) prevX, (int) prevY -2, (int) prevZ) == Tile.lapis.id){
+            goFast = true;
+        }else goFast = false;
+       //level.setTile((int) x, (int) y, (int) z, Tile.rock.id);
     }
 
     /**
@@ -146,6 +161,8 @@ public abstract class Entity {
 
         // Update on ground state
         this.onGround = prevY != y && prevY < 0.0F;
+
+
 
         // Stop motion on collision
         if (prevX != x) this.motionX = 0.0D;
